@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   StyleSheet,
   StatusBar,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,15 +15,39 @@ import { AddressBar } from '../components/AddressBar';
 import { SearchBar } from '../components/SearchBar';
 import { CategoryFilter } from '../components/CategoryFilter';
 import { RestaurantCard } from '../components/RestaurantCard';
-import { RESTAURANTS, CATEGORIES, Restaurant } from '../data/restaurants';
+import { CATEGORIES, Restaurant } from '../data/restaurants';
+import { fetchRestaurants } from '../services/restaurants.service';
+
+// Coordenadas por defecto — se reemplazarán por geolocalización real
+const DEFAULT_COORDS = { lat: -12.0464, lng: -77.0428 };
 
 export function HomeScreen() {
   const [address, setAddress] = useState('Av. Principal 123, Lima');
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Todos');
+  const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadRestaurants();
+  }, []);
+
+  async function loadRestaurants() {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await fetchRestaurants(DEFAULT_COORDS);
+      setRestaurants(data);
+    } catch {
+      setError('No se pudo conectar al servidor. Verifica que el microservicio esté corriendo.');
+    } finally {
+      setLoading(false);
+    }
+  }
 
   const filtered = useMemo(() => {
-    return RESTAURANTS.filter((r) => {
+    return restaurants.filter((r) => {
       const matchesSearch =
         search === '' ||
         r.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -33,10 +58,9 @@ export function HomeScreen() {
 
       return matchesSearch && matchesCategory;
     });
-  }, [search, selectedCategory]);
+  }, [restaurants, search, selectedCategory]);
 
   function handleRestaurantPress(restaurant: Restaurant) {
-    // TODO: navegar a la pantalla del restaurante
     console.log('Abriendo:', restaurant.name);
   }
 
@@ -51,6 +75,24 @@ export function HomeScreen() {
         </TouchableOpacity>
       </View>
 
+      {loading && (
+        <View style={styles.centered}>
+          <ActivityIndicator size="large" color="#06C167" />
+          <Text style={styles.loadingText}>Buscando restaurantes...</Text>
+        </View>
+      )}
+
+      {!loading && error && (
+        <View style={styles.centered}>
+          <Ionicons name="wifi-outline" size={48} color="#ccc" />
+          <Text style={styles.emptyText}>{error}</Text>
+          <TouchableOpacity style={styles.retryBtn} onPress={loadRestaurants}>
+            <Text style={styles.retryText}>Reintentar</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {!loading && !error && (
       <FlatList
         data={filtered}
         keyExtractor={(item) => item.id}
@@ -89,6 +131,7 @@ export function HomeScreen() {
           </View>
         }
       />
+      )}
     </SafeAreaView>
   );
 }
@@ -135,6 +178,28 @@ const styles = StyleSheet.create({
   separator: {
     height: 12,
   },
+  centered: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    padding: 32,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: '#999',
+  },
+  retryBtn: {
+    marginTop: 8,
+    backgroundColor: '#06C167',
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  retryText: {
+    color: '#fff',
+    fontWeight: '700',
+  },
   empty: {
     alignItems: 'center',
     paddingVertical: 48,
@@ -144,6 +209,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#666',
+    textAlign: 'center',
   },
   emptySubtext: {
     fontSize: 13,
