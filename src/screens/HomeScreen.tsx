@@ -17,11 +17,16 @@ import { CategoryFilter } from '../components/CategoryFilter';
 import { RestaurantCard } from '../components/RestaurantCard';
 import { CATEGORIES, Restaurant } from '../data/restaurants';
 import { fetchRestaurants } from '../services/restaurants.service';
+import { Session } from '../services/auth.service';
 
-// Coordenadas por defecto — se reemplazarán por geolocalización real
 const DEFAULT_COORDS = { lat: -12.0464, lng: -77.0428 };
 
-export function HomeScreen() {
+interface Props {
+  session: Session;
+  onLogout: () => void;
+}
+
+export function HomeScreen({ session, onLogout }: Props) {
   const [address, setAddress] = useState('Av. Principal 123, Lima');
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Todos');
@@ -70,9 +75,12 @@ export function HomeScreen() {
 
       <View style={styles.header}>
         <AddressBar address={address} onAddressChange={setAddress} />
-        <TouchableOpacity style={styles.cartBtn}>
-          <Ionicons name="bag-outline" size={22} color="#111" />
-        </TouchableOpacity>
+        <View style={styles.headerRight}>
+          <Text style={styles.userName}>{session.user.nombre.split(' ')[0]}</Text>
+          <TouchableOpacity onPress={onLogout} style={styles.cartBtn}>
+            <Ionicons name="log-out-outline" size={22} color="#111" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {loading && (
@@ -149,8 +157,18 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#F0F0F0',
   },
-  cartBtn: {
+  headerRight: {
     marginLeft: 'auto',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  userName: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#555',
+  },
+  cartBtn: {
     padding: 4,
   },
   list: {
